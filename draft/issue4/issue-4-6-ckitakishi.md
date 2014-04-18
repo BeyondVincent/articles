@@ -10,24 +10,28 @@ tags: article
 {% include links-4.md %}
 
 A way to get objects out of the store is to use an `NSFetchRequest`. Note, though, that one of the most common mistakes is to fetch data when you don't need to. Make sure you read and understand [Getting to Objects][320]. Most of the time, traversing relationships is more efficient, and using an `NSFetchRequest` is often expensive.
-调用对象的方法之一是使用 `NSFetchRequest`。但是请注意，尽管如此，有一个最常见的错误是在你不需要的时候读取数据。你要确保你已经阅读并理解 [Getting to Objects][320]。大多数时候，转换关系更加有效，而使用 `NSFetchRequest` 成本更高。
+
+调用对象的方法之一是使用 `NSFetchRequest`。但是请注意，尽管如此，有一个最常见的错误是在你不需要的时候读取数据。你要确保你已经阅读并理解 [Getting to Objects][320]。大多数时候，遍历关系更加有效，而使用 `NSFetchRequest` 成本更高。
 
 There are usually two reasons to perform a fetch with an `NSFetchRequest`: (1) You need to search your entire object graph for objects that match specific predicates. Or (2), you want to display all your objects, e.g. in a table view. There's a third, less-common scenario, where you're traversing relationships but want to pre-fetch more efficiently. We'll briefly dive into that, too. But let us first look at the main two reasons, which are more common and each have their own set of complexities.
-通常有两个原因使用 `NSFetchRequest` 来执行数据读取：（1）你需要为匹配特定谓词的对象搜索整个对象图；或者（2）你想要显示所有的对象，比如说使用表视图。第三，是一个不常见的方案，在这个方案中你越过关系却想要更高效地提前提取。我们也将简单深入这个问题。不过我们先来看看两个主要原因，这两个原因比较常见，但每个具有各自的复杂性。
+
+通常有两个原因使用 `NSFetchRequest` 来执行数据读取：（1）你需要为匹配特定谓词的对象搜索整个对象图；或者（2）你想要显示所有的对象，例如使用表视图。第三，是一个较不常见的情况，你遍历关系的同时却想要更高效地预先提取。我们也将简单深入这个问题。不过我们先来看看两个主要原因，它们更加常见并且每个都具有自己的复杂性。
 
 
 ## The Basics
 ## 基本原理
 
 We won't cover the basics here, since the Xcode Documentation on Core Data called [Fetching Managed Objects](https://developer.apple.com/library/mac/documentation/Cocoa/Conceptual/CoreData/Articles/cdFetching.html) covers a lot of ground already. We'll dive right into some more specialized aspects.
-在这里我们不会涉及基本原理，因为有一个名为[Fetching Managed Objects](https://developer.apple.com/library/mac/documentation/Cocoa/Conceptual/CoreData/Articles/cdFetching.html)，关于core data的Xcode文档已经对其有大量涉及。我们将会深入一些更加专业的方面。
+
+在这里我们不会涉及基本原理，因为一个关于 Core Data 的名为 [Fetching Managed Objects](https://developer.apple.com/library/mac/documentation/Cocoa/Conceptual/CoreData/Articles/cdFetching.html) 的 Xcode 文档已经涵盖了大量基本原理。我们将深入到一些更专业的方面。
 
 
 ## Searching the Object Graph
 ## 搜索对象图
 
 In our [sample with transportation data](https://github.com/objcio/issue-4-importing-and-fetching), we have 12,800 stops and almost 3,000,000 stop times that are interrelated. If we want to find stop times with a departure time between 8:00 and 8:30 for stops close to 52° 29' 57.30" North, +13° 25' 5.40" East, we don't want to load all 12,800 *stop* objects and all three million *stop time* objects into the context and then loop through them. If we did, we'd have to spend a huge amount of time to simply load all objects into memory and then a fairly large amount of memory to hold all of these in memory. Instead what we want to do is have SQLite narrow down the set of objects that we're pulling into memory.
-在[sample with transportation data](https://github.com/objcio/issue-4-importing-and-fetching)中，我们停止了12,800次，其中将近有3,000,000个停止时间相关联。如果我们由于停止接近北52° 29' 57.30"，东13° 25' 5.40"，而想要使用介于八点到八点半之间的开始时间来查找停止时间，我们不会想要在这个背景中加载所有的12800个“停止”对象和30万个“停止时间”对象，然后再对它们进行循环访问。如果我们这么做了，我们将不得不花费大量时间向储存器中加载所有的对象，然后再花大量时间储存它们。我们应该使用SQLite来缩减进入储存器的对象的集合。
+
+在我们的 [sample with transportation data](https://github.com/objcio/issue-4-importing-and-fetching) 中，我们有 12,800 次停止，其中几乎 3,000,000 个停止时间相互关联。如果我们由于停止的位置接近北纬 52° 29' 57.30"，东经 +13° 25' 5.40"，而想要通过开始时间介于 8：00 和 8：30 之间的对象来查找停止时间，我们不会想要在这个 context 中加载所有的 12,800 个 `停止` 对象和 3,000,000 个 `停止时间` 对象，然后再对它们进行循环访问。如果我们这样做，将不得不花费大量时间以及相当大的存储空间以将所有的对象加载到存储器中。取而代之，我们想要的是使用 SQLite 来缩减进入储存器的对象的集合。
 
 
 ### Geo-Location Predicate
@@ -35,35 +39,36 @@ In our [sample with transportation data](https://github.com/objcio/issue-4-impor
 
 
 Let's start out small and create a fetch request for stops close to 52° 29' 57.30" North, +13° 25' 5.40" East. First we create the fetch request:
-让我们从小处开始，为接近北52° 29' 57.30"东13° 25' 5.40"的停止创建一个读取请求。首先我们创建这个读取请求：
+
+让我们从小处开始，为位置接近北纬 52° 29' 57.30" 东经 +13° 25' 5.40" 的停止对象创建一个 fetch 请求。首先我们创建这个 fetch 请求：
 
     NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[Stop entityName]]
 
 We're using the `+entityName` method that we mention in [Florian's data model article][250]. Next, we need to limit the results to just those close to our point.
-我们使用[Florian's data model article][250]中提到的`+entityName`法。然后我们需要限制结果，使其接近我们的关注点。
+我们使用[Florian's data model article][250]中提到的 `+entityName` 方法。然后，我们需要将结果限定为那些接近我们关注点的。
 
 We'll simply use a (not quite) square region around our point of interest. The actual math is [a bit complex](https://en.wikipedia.org/wiki/Geographical_distance), because the Earth happens to be somewhat similar to an ellipsoid. If we cheat a bit and assume the earth is spherical, we get away with this formula:
-我们仅仅在我们的关注点周围使用一个正方形区域。现实中的数学公式[有些复杂] (https://en.wikipedia.org/wiki/Geographical_distance)，这是由于地球从某种程度上来说接近椭圆。如果我们假设地球是正圆形，我们可以使用以下方法来解决问题：
+我们可以简单的用一个（不完全）正方形区域围绕我们的兴趣点。实际在数学上这[有些复杂] (https://en.wikipedia.org/wiki/Geographical_distance)，因为地球恰好有点类似于一个椭球。如果我们假设地球是球体，则可以得到这个公式：
 
     D = R * sqrt( (deltaLatitude * deltaLatitude) +
 	              (cos(meanLatitidue) * deltaLongitude) * (cos(meanLatitidue) * deltaLongitude))
 
 We end up with something like this (all approximate):
-以以下内容来结束（均为近似值）
+我们用以下内容作为结束（均为近似值）：
 
     static double const R = 6371009000; // Earth readius in meters
     double deltaLatitude = D / R * 180 / M_PI;
     double deltaLongitude = D / (R * cos(meanLatitidue)) * 180 / M_PI;
 
 Our point of interest is:
-我们的关注点是：
+我们的兴趣点是：
 
 	CLLocation *pointOfInterest = [[CLLocation alloc] initWithLatitude:52.4992490 
                                                              longitude:13.4181670];
 
 We want to search within ±263 feet (80 meters):
 我们想在±263英尺（80米）内进行搜索：
-
+	
 	static double const D = 80. * 1.1;
     double const R = 6371009.; // Earth readius in meters
 	double meanLatitidue = pointOfInterest.latitude * M_PI / 180.;
@@ -75,7 +80,7 @@ We want to search within ±263 feet (80 meters):
 	double maxLongitude = pointOfInterest.longitude + deltaLongitude;
 
 (This math is broken when we're close to the 180° meridian. We'll ignore that since our traffic data is for Berlin which is far, far away.)
-（当我们接近经线180°的时候，这个公式无法成立。由于我们使用的是离经线180°很远很远的柏林交通数据，所以我们选择忽视这个问题。）
+（当我们接近180°经线的时候，这个公式无法成立。由于我们的交通数据源于很远很远的柏林，所以我们忽略这个问题。）
 
     request.result = [NSPredicate predicateWithFormat:
                       @"(%@ <= longitude) AND (longitude <= %@)"
@@ -83,30 +88,30 @@ We want to search within ±263 feet (80 meters):
                       @(minLongitude), @(maxLongitude), @(minLatitude), @(maxLatitude)];
 
 There's no point in specifying a sort descriptor. Since we're going to be doing a second in-memory pass over all objects, we will, however, ask Core Data to fill in all values for all returned objects:
-指定一种描述符毫无意义。由于我们会对所有的对象做另外一个存储通行证，不过我们将用core data填入所有返回对象的所有的值。
+指定一种排序描述符毫无意义。因为我们会用另一个内存来传递所有对象，不过我们将用 Core Data 填入所有返回对象的所有的值。
 
     request.returnsObjectsAsFaults = NO;
 
 Without this, Core Data will fetch all values into the persistent store coordinator's row cache, but it will not populate the actual objects. Often that makes sense, but since we'll immediately be accessing all of the objects, we don't want that behavior.
-否则，core data将进入持久化存储协调器的row cache读取所有的值，不过它不会填充实际对象。这往往是可行的，不过由于我们可以立刻访问所有对象，我们不会作出如上行为。
+否则，core data将进入持久化存储协调器的row cache读取所有的值，不过它不会填充实际对象。这往往是可行的，不过由于我们将立刻访问所有对象，我们并不希望出现这种行为。
 
 As a safe-guard, it's good to add:
-为安全防范考虑，最好加上如下代码：
+为安全防范考虑，最好加上：
 
     request.fetchLimit = 200;
 
 We execute this fetch request:
-执行这条读取请求
+执行这条 fetch 请求
 
     NSError *error = nil;
     NSArray *stops = [moc executeFetchRequest:request error:&error];
     NSAssert(stops != nil, @"Failed to execute %@: %@", request, error);
 
 The only (likely) reasons the fetch would fail is if the store went corrupt (file was deleted, etc.) or if there's a syntax error in the fetch request. So it's safe to use `NSAssert()` here.
-本次读取失败唯一可能的理原因是储存器损坏（文件被删除等待），或者读取请求中出现句法错误。所以说在这里使用`NSAssert()`是安全的。
+读取失败唯一（可能）的理原因是储存器损坏（文件被删除等等），或者 fetch 请求中出现语法错误。所以在这里使用 `NSAssert()` 是安全的。
 
 We'll now do the second pass over the in-memory data using Core Locations advance distance math:
-我们现在使用Core Locations推进距离数学，为储存器中的数据做第二个通行证。
+我们现在使用 Core Locations 推进距离数学，为内存中的数据做第二个通行证。
 
     NSPredicate *exactPredicate = [self exactLatitudeAndLongitudePredicateForCoordinate:self.location.coordinate];
     stops = [stops filteredArrayUsingPredicate:exactPredicate];
@@ -123,7 +128,7 @@ and:
     }
 
 And we're all set.
-至此我们全部设置好了。
+至此我们完成了全部设置。
 
 #### Geo-Location Performance
 #### 地理定位性能
@@ -319,7 +324,7 @@ We'll update the `Stop` class to automatically update the `normalizedName`:
     }
     
 	// ...
-
+	
     @end
 
 
