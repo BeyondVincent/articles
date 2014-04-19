@@ -31,7 +31,7 @@ We won't cover the basics here, since the Xcode Documentation on Core Data calle
 
 In our [sample with transportation data](https://github.com/objcio/issue-4-importing-and-fetching), we have 12,800 stops and almost 3,000,000 stop times that are interrelated. If we want to find stop times with a departure time between 8:00 and 8:30 for stops close to 52° 29' 57.30" North, +13° 25' 5.40" East, we don't want to load all 12,800 *stop* objects and all three million *stop time* objects into the context and then loop through them. If we did, we'd have to spend a huge amount of time to simply load all objects into memory and then a fairly large amount of memory to hold all of these in memory. Instead what we want to do is have SQLite narrow down the set of objects that we're pulling into memory.
 
-在我们的 [sample with transportation data](https://github.com/objcio/issue-4-importing-and-fetching) 中，我们有 12,800 次停止，其中几乎 3,000,000 个停止时间相互关联。如果我们由于停止的位置接近北纬 52° 29' 57.30"，东经 +13° 25' 5.40"，而想要通过开始时间介于 8：00 和 8：30 之间的对象来查找停止时间，我们不会想要在这个 context 中加载所有的 12,800 个 `停止` 对象和 3,000,000 个 `停止时间` 对象，然后再对它们进行循环访问。如果我们这样做，将不得不花费大量时间以及相当大的存储空间以将所有的对象加载到存储器中。取而代之，我们想要的是使用 SQLite 来缩减进入储存器的对象的集合。
+在我们的 [sample with transportation data](https://github.com/objcio/issue-4-importing-and-fetching) 中，我们有 12,800 个车站，其中几乎 3,000,000 个停止时间相互关联。对接近北纬 52° 29' 57.30"，东经 +13° 25' 5.40" 的车站，如果我们想要通过开始时间介于 8：00 和 8：30 之间的对象来查找停止时间，我们不会想要在这个 context 中加载所有的 12,800 个 `车站` 对象和 3,000,000 个 `停止时间` 对象，然后再对它们进行循环访问。如果我们这样做，将不得不花费大量时间以及相当大的存储空间以将所有的对象加载到存储器中。取而代之，我们想要的是使用 SQLite 来缩减进入储存器的对象的集合。
 
 
 ### Geo-Location Predicate
@@ -40,7 +40,7 @@ In our [sample with transportation data](https://github.com/objcio/issue-4-impor
 
 Let's start out small and create a fetch request for stops close to 52° 29' 57.30" North, +13° 25' 5.40" East. First we create the fetch request:
 
-让我们从小处开始，为位置接近北纬 52° 29' 57.30" 东经 +13° 25' 5.40" 的停止对象创建一个 fetch 请求。首先我们创建这个 fetch 请求：
+让我们从小处开始，为位置接近北纬 52° 29' 57.30" 东经 +13° 25' 5.40" 的车站创建一个 fetch 请求。首先我们创建这个 fetch 请求：
 
     NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[Stop entityName]]
 
@@ -274,21 +274,23 @@ Things get even worse if you want to be able to do:
     name BEGINSWITH[cd] 'u gorli'
  
 i.e. do a case and / or diacritic insensitive lookup.
-例如：进行一项大小写和（或）音调不敏感的查询。
+例如：进行一项大小写和 / 或音调不敏感的查询。
 
 Things are not that simple, though. Unicode is very complicated and there are quite a few gotchas. First and foremost ís that many characters can be represented in multiple ways. Both [U+00F6](http://unicode.org/charts/PDF/U0080.pdf) and [U+006F](http://www.unicode.org/charts/PDF/U0000.pdf) [U+0308](http://unicode.org/charts/PDF/U0300.pdf) represent "ö." And concepts such as uppercase / lowercase are very complicated once you're outside the ASCII code points.
 
-尽管如此，事情并不是那么简单。解码非常复杂，而且有很多陷阱。首要的是很多字符可以使用多种方式来表示。
-[U+00F6](http://unicode.org/charts/PDF/U0080.pdf) and [U+006F](http://www.unicode.org/charts/PDF/U0000.pdf) [U+0308](http://unicode.org/charts/PDF/U0300.pdf)都可以表示"ö."。如果你不使用ASCII编码，像大小写这样的概念就会非常复杂。
+尽管如此，事情并不是那么简单。Unicode 非常复杂，并且有很多陷阱。首要的是很多字符可以通过多种方式来表示。
+[U+00F6](http://unicode.org/charts/PDF/U0080.pdf) 和 [U+006F](http://www.unicode.org/charts/PDF/U0000.pdf)都代表 [U+0308](http://unicode.org/charts/PDF/U0300.pdf)都可以表示 "ö."。如果你不使用 ASCII 码，像大写 / 小写这样的概念就会非常复杂。
 
 SQLite will do the heavy lifting for you, but it comes at a price. It may seem straightforward, but it's really not. What we want to do for string searches is to have a *normalized* version of the field that you can search on. We'll remove diacritics and make the string lowercase and then put that into a`normalizedName` field. We'll then do the same to our search string. SQLite then won't have to consider diacritics and case, and the search will effectively still be case and diacritics insensitive. But we have to do the heavy lifting up front.
-SQLite会为你减轻负担，但是需要一些花费。虽然它看起来非常直接，但是事实完全并非如此。对于字符串搜索，我们想做的是在我们搜索的领域内有一个规范版本。我们将消除音调，让字符串成为小写字母，然后将其放进一个“规范名称”领域。然后我们将对我们的搜索字符串做同样的事情。然后SQLite就不必考虑音调和大小写，搜索将非常有效，仍然忽略大小写和音调。
+
+SQLite 会为你减轻负担，但它是要付出代价的。虽然它看起来简单，但事实并非如此。对于字符串搜索，我们想做的是在我们搜索的领域内有一个 *规范化* 的版本。我们将消除音调符号，让字符串成为小写字母，然后将其列入一个 *规范名称* 领域。然后我们将对搜索字符串做同样的事情。然后 SQLite 就不必考虑音调和大小写，在大小写和音调不敏感的情况下，搜索仍然有效。但是我们必须先完成繁重的任务。
 
 Searching with `BEGINSWITH[cd]` takes around 7.6 ms on a recent MacBook Pro with the sample strings in our sample code (130 searches / second). On an iPhone 5 those numbers are 47 ms per search and 21 searches per second.
-在最近的MacBook Pro上，使用样本代码中的样本字符串（每秒130次搜索）搜索`BEGINSWITH[cd]`需要7.6ms，在iPhone 5上每次搜索需要47ms，每秒进行21次搜索。
+
+在最新一代 MacBook Pro 上，使用示例代码中的示例字符串（130次搜索 / 秒）搜索 `BEGINSWITH[cd]` 需要 7.6ms，在 iPhone 5 上这个数字是每次搜索 47ms，每秒进行 21 次搜索。
 
 To make a string lowercase and remove diacritics, we can use `CFStringTransform()`:
-我们可以使用`CFStringTransform()`来让字符串成为小写字母。
+为了将字符串转换为小写和移除其音调，我们可以使用 `CFStringTransform()`：
 
     @implementation NSString (SearchNormalization)
     
@@ -304,7 +306,7 @@ To make a string lowercase and remove diacritics, we can use `CFStringTransform(
     @end
 
 We'll update the `Stop` class to automatically update the `normalizedName`:
-我们将更新“Stop”类，使其成为自动更新`normalizedName`：
+我们将更新 `车站` 类来自动更新 `规范名称`：
 
     @interface Stop (CoreDataForward)
     
@@ -333,45 +335,51 @@ We'll update the `Stop` class to automatically update the `normalizedName`:
 
 
 With this, we can search with `BEGINSWITH` instead of `BEGINSWITH[cd]`:
-由此，我们可以搜索`BEGINSWITH`，用来替代搜索`BEGINSWITH[cd]`。
+有了下面的代码，我们可以用 `BEGINSWITH` 代替 `BEGINSWITH[cd]` 来搜索：
 
     predicate = [NSPredicate predicateWithFormat:@"normalizedName BEGINSWITH %@", [searchString normalizedSearchString]];
 
 Searching with `BEGINSWITH` takes around 6.2 ms on a recent MacBook Pro with the sample strings in our sample code (160 searches / second). On an iPhone 5 it takes 40ms corresponding to 25 searches / second.
-在最近的MacBook Pro上，使用样本代码中的样本字符串（每秒160次搜索）搜索`BEGINSWITH`
-需要6.2ms，在iPhone 5上需要40ms，每秒25次搜索。
+
+在最新一代 MacBook Pro 上，使用示例代码中的示例字符串（160 次搜索 / 秒）搜索 `BEGINSWITH`
+需要6.2ms，在 iPhone 5 大约上需要 40ms，25 次搜索 / 秒。
 
 #### Free Text Search
 #### 自由文本搜索
 
 Our search still only works if the beginning of the string matches the search string. The way to fix that is to create another *Entity* that we search on. Let's call this Entity `SearchTerm`, and give it a single attribute `normalizedWord` and a relationship to a `Stop`. For each `Stop` we would then normalize the name and split it into words, e.g.:
-我们的搜索还只能在字符串的开头和搜索字符串相匹配的情况下有效。要解决这个问题就要创建另一个用来搜索的“实体”。我们将这个实体成为`SearchTerm`，给其一个单独的`normalizedWord`属性，以及和一个`Stop`的关系。对于每个`Stop`我们将规范它们的名称，将其分裂成为一个个的词。比如：
+
+我们的搜索还只能在字符串的开头和搜索字符串相匹配的情况下有效。要解决这个问题就要创建另一个用来搜索的 *实体*。我们称这个实体为 `搜索关键词`，给其一个唯一的 `规范词` 属性，以及一个和 `车站` 的关系。对于每个`车站` 我们将规范它们的名称，以及将其拆分成一个个词。例如：
 
         "Gedenkstätte Dt. Widerstand (Berlin)"
 	->  "gedenkstatte dt. widerstand (berlin)"
 	->  "gedenkstatte", "dt", "widerstand", "berlin"
 
 For each word, we create a `SearchTerm` and a relationship from the `Stop` to all its `SearchTerm` objects. When the user enters a string, we search on the `SearchTerm` objects' `normalizedWord` with:
-对于每个词。我们创建一个`SearchTerm`和一个从`Stop` 到其所有的 `SearchTerm`对象的关系。当用户键入一个字符串，我们在`SearchTerm` 对象的 `normalizedWord`上使用如下代码：
+
+对于每个词。我们创建一个 `搜索关键词` 和一个从 `车站` 到它的所有 `搜索关键词` 对象的关系。当用户输入一个字符串，我们用以下代码在 `搜索关键词` 对象的 `规范词` 上搜索：
 
 	predicate = [NSPredicate predicateWithFormat:@"normalizedWord BEGINSWITH %@", [searchString normalizedSearchString]]
 
 This can also be done in a subquery directly on the `Stop` objects.
-这也可以在`Stop`对象中，直接在子查询中完成。
+这也可以在 `车站`对象中直接用子查询完成。
 
 ## Fetching All Objects
 ## 读取所有对象
 
 If we don't set a predicate on our fetch request, we'll retrieve all objects for the given *Entity*. If we did that for the `StopTimes` entity, we'll be pulling in three million objects. That would be slow, and use up a lot of memory. Sometimes, however, we need to get all objects. The common example is that we want to show all objects inside a table view.
-如果我们在读取请求中没有设置谓词，我们将为指定“实体”检索所有对象。如果我们对`StopTimes`实体这样做的话，我们将会牵涉进300万个对象。这会变得非常慢，消耗大量内存。然而有时候，我们需要获取所有对象。常见的例子是我们想要在表视图中展示所有对象。
+
+如果我们的 fetch 请求中没有设置谓词，我们将为给定 *实体* 检索所有对象。如果我们对 `停止时间` 实体这样做的话，我们将会牵涉 300 万个对象。这将会变得缓慢，以及占用大量内存。然而有时候，我们需要获取所有对象。常见的例子是我们想要在一个 table view 中显示所有对象。
 
 What we would do in this case, is to set a batch size:
-在如下情况中，我们要做的是设置批处理量。
+在这种情况中，我们要做的是设置批处理量：
   
     request.fetchBatchSize = 50;
 
 When we run `-[NSManagedObjectContext executeFetchRequest:error:]` with a batch size set, we still get an array back. We can ask it for its count (which will be close to three million for the `StopTime` entity), but Core Data will only populate it with objects as we iterate through the array. And Core Data will get rid of objects again, as they're no longer accessed. Simply put, the array has batches of size 50 (in this case). Core Data will pull in 50 objects at a time. Once more than a certain number of these batches are around, Core Data will release the oldest batch. That way you can loop through all objects in such an array, without having to have all three million objects in memory at the same time.
-当我们用一定批量设置来运行`-[NSManagedObjectContext executeFetchRequest:error:]`的时候，我们获得返回的数组。我们可以获得计数（对于“停止时间”实体而言，这将接近300万），不过Core Data只随着我们对数组的循环访问将对象填充进去。如果这些对象不再被访问，Core Data则会再次清理对象。简单来说，在这个样例中，数组量为50。Core Data将同时引入50个对象。一旦有超过一定数量的批量对象，Core Data将释放最旧一批对象。在这样的一个数组中你可以循环访问所有对象，储存器中不必同时储存所有的300万个对象。
+
+当我们设置了批处理量运行 `-[NSManagedObjectContext executeFetchRequest:error:]` 的时候，我们仍然会得到一个返回的数组。我们可以查询它的大小（对于 `停止时间` 实体而言，这将接近 300 万），不过 Core Data 将只会随着我们对数组的循环访问将对象填充进去。如果这些对象不再被访问，Core Data 则会再次清理对象。简单来说，数组的批处理量为 50（在这个例子中）。Core Data 将一次获取50个对象。一旦有超过一定数量的批量对象，Core Data 将释放最旧一批对象。于是，你就可以在这样的数组中循环访问所有对象，而无需在存储器中同时存所有 300 万个对象。
 
 On iOS, when you use an `NSFetchedResultsController` and you have a lot of objects, make sure that the `fetchBatchSize` is set on your fetch request. You'll have to experiment with what size works well for you. Twice the amount of objects that you'll be displaying at any given point in time is a good starting point.
-在iOS中，如果你使用`NSFetchedResultsController`，并且你有很多对象，请确保你的读取请求中设置了`fetchBatchSize`。你将不得不测试多大量能够运行良好。在一开始最好让对象数目翻倍，这样你就可以在任何指定的时间点及时显示对象。
+
+在 iOS 中，如果你使用 `NSFetchedResultsController` 且有很多对象，请确保你的 fetch 请求中设置了 `fetchBatchSize`。你不得不测试多少处理量更适合你。在一开始最好让对象数目翻倍，这样你就可以在任何指定的时间点及时显示对象。
