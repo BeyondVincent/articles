@@ -80,7 +80,7 @@ We want to search within ±263 feet (80 meters):
 	double maxLongitude = pointOfInterest.longitude + deltaLongitude;
 
 (This math is broken when we're close to the 180° meridian. We'll ignore that since our traffic data is for Berlin which is far, far away.)
-（当我们接近180°经线的时候，这个公式无法成立。由于我们的交通数据源于很远很远的柏林，所以我们忽略这个问题。）
+（当我们接近 180° 经线的时候，这个公式不成立。由于我们的交通数据源于离 180° 经线很远很远的柏林，所以我们忽略这个问题。）
 
     request.result = [NSPredicate predicateWithFormat:
                       @"(%@ <= longitude) AND (longitude <= %@)"
@@ -108,7 +108,7 @@ We execute this fetch request:
     NSAssert(stops != nil, @"Failed to execute %@: %@", request, error);
 
 The only (likely) reasons the fetch would fail is if the store went corrupt (file was deleted, etc.) or if there's a syntax error in the fetch request. So it's safe to use `NSAssert()` here.
-读取失败唯一（可能）的理原因是储存器损坏（文件被删除等等），或者 fetch 请求中出现语法错误。所以在这里使用 `NSAssert()` 是安全的。
+读取失败唯一（可能）的原因是储存器损坏（文件被删除等等），或者 fetch 请求中出现语法错误。所以在这里使用 `NSAssert()` 是安全的。
 
 We'll now do the second pass over the in-memory data using Core Locations advance distance math:
 我们现在使用 Core Locations 推进距离数学，为内存中的数据做第二个通行证。
@@ -135,24 +135,24 @@ And we're all set.
 
 
 These fetches take around 360µs on average on a recent MacBook Pro with SSD. That is, you can do approximately 2,800 of these requests per second. On an iPhone 5 we'd be getting around 1.67ms on average, or some 600 requests per second.
-最近使用SSD硬盘的MacBook Pro读取数据平均约需要360µs，也就是说每秒约做2800次请求。iPhone 5平均需要1.67ms，每秒600次请求。
+使用装载了 SSD 硬盘的新一代 MacBook Pro 读取这些数据平均约需要 360µs，也就是说，你每秒可以做大约 2800 次请求。iPhone 5 平均约需要 1.67ms，每秒 600 次请求。
 
 If we add `-com.apple.CoreData.SQLDebug 1` as launch arguments to the app, we get this output:
-如果我们给app加上启动参数`-com.apple.CoreData.SQLDebug 1`，我们得到如下输出结果：
+如果加上 `-com.apple.CoreData.SQLDebug1` 作为启动参数传递给应用程序，我们将得到如下输出：
 
     sql: SELECT 0, t0.Z_PK, t0.Z_OPT, t0.ZIDENTIFIER, t0.ZLATITUDE, t0.ZLONGITUDE, t0.ZNAME FROM ZSTOP t0 WHERE (? <=  t0.ZLONGITUDE AND  t0.ZLONGITUDE <= ? AND ? <=  t0.ZLATITUDE AND  t0.ZLATITUDE <= ?)  LIMIT 100
     annotation: sql connection fetch time: 0.0008s
     annotation: total fetch execution time: 0.0013s for 15 rows.
 
 In addition to some statistics (for the store itself), this shows us the generated SQL for these fetches:
-另外，对某些对储存器本身的统计而言，这向我们展示了这些请求的生成SQL
+除了一些统计信息（对于存储本身），还向我们展示了读取到的数据生成的SQL：
 
     SELECT 0, t0.Z_PK, t0.Z_OPT, t0.ZIDENTIFIER, t0.ZLATITUDE, t0.ZLONGITUDE, t0.ZNAME FROM ZSTOP t0
 	WHERE (? <=  t0.ZLONGITUDE AND  t0.ZLONGITUDE <= ? AND ? <=  t0.ZLATITUDE AND  t0.ZLATITUDE <= ?)
 	LIMIT 200
 
 which is what we'd expect. If we'd want to investigate the performance, we can use the SQL [`EXPLAIN` command](https://www.sqlite.org/eqp.html). For this, we'd open the database with the command line `sqlite3` command like this:
-这是我们所希望得到的。如果我们想要对这个性能进行调查研究，我们可以使用SQL[`EXPLAIN` command](https://www.sqlite.org/eqp.html)。我们可以像这样使用命令行`sqlite3`来打开数据库：
+这正是我们所期望的。如果我们想要对这个性能进行调查研究，我们可以使用 SQL [`EXPLAIN` command](https://www.sqlite.org/eqp.html)。为此，我们可以像下面这样使用命令行 `sqlite3` 来打开数据库：
 
     % cd TrafficSearch
 	% sqlite3 transit-data.sqlite
@@ -165,56 +165,59 @@ which is what we'd expect. If we'd want to investigate the performance, we can u
 	0|0|0|SEARCH TABLE ZSTOP AS t0 USING INDEX ZSTOP_ZLONGITUDE_INDEX (ZLONGITUDE>? AND ZLONGITUDE<?) (~6944 rows)
 
 This tell us that SQLite was using the `ZSTOP_ZLONGITUDE_INDEX` for the `(ZLONGITUDE>? AND ZLONGITUDE<?)` condition. We could do better by using a *compound index* as described in the [model article][260]. Since we'd always search for a combination of longitude and latitude that is more efficient, and we can remove the individual indexes on longitude and latitude.
-这告诉我们SQLite使用`ZSTOP_ZLONGITUDE_INDEX` for the `(ZLONGITUDE>? AND ZLONGITUDE<?)`条件。我们可以像[model article][260]中描述的那样使用*compound index*，则会做的更好。由于我们总是为了效率考虑而同时搜索经纬度，我们可以去除经度和纬度各自的指数。
+这告诉我们 SQLite 为 `(ZLONGITUDE>? AND ZLONGITUDE<?)` 条件使用了 `ZSTOP_ZLONGITUDE_INDEX`。我们像 [model article][260] 中描述的那样使用 *compound index* 则会做的更好。由于我们总是为了效率而同时搜索经纬度，而且我们可以去除经度和纬度各自的指数。
 
 This would make the output look like this:
-输出如下：
+这将使输出像下面这样：
 
     0|0|0|SEARCH TABLE ZSTOP AS t0 USING INDEX ZSTOP_ZLONGITUDE_ZLATITUDE (ZLONGITUDE>? AND ZLONGITUDE<?) (~6944 rows)
 
 In our simple case, adding a compound index hardly affects performance.
-在我们简单的案例中加上复合索引几乎不会对性能造成影响。
+在我们的简单案例中加上复合索引几乎不影响性能。
 
 As explained in the [SQLite Documentation](https://www.sqlite.org/eqp.html), the warning sign is a `SCAN TABLE` in the output. That basically means that SQLite needs to go through *all* entries to see which ones are matching. Unless you store just a few objects, you'd probably want an index.
-就像在[SQLite 文档](https://www.sqlite.org/eqp.html)中所作出的解释一样，警报信号是输出一个SCAN TABLE`。这基本上表示SQLite需要检查*所有*数据表，来寻找相匹配的的数据表。
+
+就像在 [SQLite 文档](https://www.sqlite.org/eqp.html) 中的说明一样，警报信号在输出中是一个 `SCAN TABLE`。这基本上意味着 SQLite 需要遍历 *所有的* 记录来看看那些是相匹配的。
 
 ### Subqueries
 ### 子查询
 
 
 Let's say we only want those stops near us that are serviced within the next twenty minutes.
-我们说我们只想要那些接近我们的且在20分钟之内受到维护的停止。
+假设我们只想要那些接近我们的且在接下来20分钟之内提供服务的停止对象。
 
 We can create a predicate for the *StopTimes* entity like this:
-我们为“停止时间”实体创建一个谓词：
+我们可以像这样为 *停止时间* 实体创建一个谓词：
 
     NSPredicate *timePredicate = [NSPredicate predicateWithFormat:@"(%@ <= departureTime) && (departureTime <= %@)",
                                   startDate, endDate];
 
 But what if what we want is a predicate that we can use to filter *Stop* objects based on the relationship to *StopTime* objects, not *StopTime* objects themselves? We can do that with a `SUBQUERY` like this:
-如果我们想要的是一个我们可以用来过滤哪些基于“停止时间”对象关系的“停止”对象，而不是“停止时间”实体本身，我们又该如何呢？我们可以使用这样的子查询：
+但是如果我们想要的谓词是可以用来过滤哪些是基于与 *停止时间* 对象的关系之上的 *停止* 对象，而不是 *停止时间* 对象本身，我们可以使用一个这样的 `子查询` ：
 
     NSPredicate *predicate = [NSPredicate predicateWithFormat:
                               @"(SUBQUERY(stopTimes, $x, (%@ <= $x.departureTime) && ($x.departureTime <= %@)).@count != 0)",
                               startDate, endDate];
 
 Note that this logic is slightly flawed if we're close to midnight, since we ought to wrap by splitting the predicate up into two. But it'll work for this example.
-请注意，如果接近午夜，这个逻辑稍有缺陷的，因为我们会以将谓词一分为二的方式来截断。不过这个逻辑在下面这个样本中是可行的。
+请注意，如果接近午夜，这个逻辑是稍有瑕疵的，因为我们应当将谓词一分为二。不过这个逻辑在这个例子中是可行的。
 
 Subqueries are very powerful for limiting data across relationship. The Xcode documentation for [`-[NSExpression expressionForSubquery:usingIteratorVariable:predicate:]`](https://developer.apple.com/library/ios/documentation/cocoa/reference/foundation/Classes/NSExpression_Class/Reference/NSExpression.html#//apple_ref/occ/clm/NSExpression/expressionForSubquery:usingIteratorVariable:predicate:) has more info. 
-对于限制数据超越其关系，子查询非常有用。[`-[NSExpression expressionForSubquery:usingIteratorVariable:predicate:]`](https://developer.apple.com/library/ios/documentation/cocoa/reference/foundation/Classes/NSExpression_Class/Reference/NSExpression.html#//apple_ref/occ/clm/NSExpression/expressionForSubquery:usingIteratorVariable:predicate:) 的Xcode文档有更多解释。
+
+对于限制数据在关系之上的，子查询非常有用。在 Xcode 文档[`-[NSExpression expressionForSubquery:usingIteratorVariable:predicate:]`](https://developer.apple.com/library/ios/documentation/cocoa/reference/foundation/Classes/NSExpression_Class/Reference/NSExpression.html#//apple_ref/occ/clm/NSExpression/expressionForSubquery:usingIteratorVariable:predicate:) 中有更多信息。
 
 We can combine two predicates simply using `AND` or `&&`, i.e.
-我们可以简单实用“and”或者“&&”来合并两个谓词，比如：
+我们可以简单的使用 `and` 或者 `&&` 来组合两个谓词，例如：
 
 
     [NSPredicate predicateWithFormat:@"(%@ <= departureTime) && (SUBQUERY(stopTimes ....
 
 or in code using [`+[NSCompoundPredicate andPredicateWithSubpredicates:]`](https://developer.apple.com/library/ios/DOCUMENTATION/Cocoa/Reference/Foundation/Classes/NSCompoundPredicate_Class/Reference/Reference.html#//apple_ref/occ/clm/NSCompoundPredicate/andPredicateWithSubpredicates:).
-或者在代码中使用[`+[NSCompoundPredicate andPredicateWithSubpredicates:]`](https://developer.apple.com/library/ios/DOCUMENTATION/Cocoa/Reference/Foundation/Classes/NSCompoundPredicate_Class/Reference/Reference.html#//apple_ref/occ/clm/NSCompoundPredicate/andPredicateWithSubpredicates:)。
+
+或者在代码中使用 [`+[NSCompoundPredicate andPredicateWithSubpredicates:]`](https://developer.apple.com/library/ios/DOCUMENTATION/Cocoa/Reference/Foundation/Classes/NSCompoundPredicate_Class/Reference/Reference.html#//apple_ref/occ/clm/NSCompoundPredicate/andPredicateWithSubpredicates:)。
 
 We end up with a predicate that looks like this:
-我们用像如下所示的谓词来结束：
+我们用一个像这样的谓词来作为结束：
 
     (lldb) po predicate
     (13.39657778010461 <= longitude AND longitude <= 13.42266155792719
@@ -229,7 +232,7 @@ We end up with a predicate that looks like this:
 
 
 If we look at the generated SQL it looks like this:
-如果我们看生成SQL，如下
+如果我们看一下生成的 SQL ，就像下面这样：
 
     sql: SELECT 0, t0.Z_PK, t0.Z_OPT, t0.ZIDENTIFIER, t0.ZLATITUDE, t0.ZLONGITUDE, t0.ZNAME FROM ZSTOP t0
 	     WHERE ((? <=  t0.ZLONGITUDE AND  t0.ZLONGITUDE <= ? AND ? <=  t0.ZLATITUDE AND  t0.ZLATITUDE <= ?)
@@ -237,10 +240,10 @@ If we look at the generated SQL it looks like this:
 		 LIMIT 200
 
 This fetch request now takes around 12.3 ms to run on a recent MacBook Pro. On an iPhone 5, it'll take about 110 ms. Note that we have three million stop times and almost 13,000 stops.
-这个读取请求在最新的MacBook Pro上运行大约需要12.3ms。在iPhone 5上，大约需要110ms。请注意我们有3亿停止时间和将近13000停止。
+这个 fetch 请求在新一代 MacBook Pro 上运行大约需要 12.3 ms。在 iPhone 5 上，大约需要 110 ms。请注意，我们有 3,000,000 个停止时间 和将近 13,000 个车站。
 
 The query plan explanation looks like this:
-这个查询方案解释如下：
+这个查询计划的解释如下：
     sqlite> EXPLAIN QUERY PLAN SELECT 0, t0.Z_PK, t0.Z_OPT, t0.ZIDENTIFIER, t0.ZLATITUDE, t0.ZLONGITUDE, t0.ZNAME FROM ZSTOP t0
        ...> WHERE ((13.37190946378911 <=  t0.ZLONGITUDE AND  t0.ZLONGITUDE <= 13.3978625285315 AND 52.41186440524024 <=  t0.ZLATITUDE AND  t0.ZLATITUDE <= 52.42769244314491) AND
        ...> (SELECT COUNT(t1.Z_PK) FROM ZSTOPTIME t1 WHERE (t0.Z_PK = t1.ZSTOP AND ((-978291733.000000 <=  t1.ZDEPARTURETIME AND  t1.ZDEPARTURETIME <= -978290533.000000))) ) <> ?)
@@ -250,30 +253,31 @@ The query plan explanation looks like this:
     1|0|0|SEARCH TABLE ZSTOPTIME AS t1 USING INDEX ZSTOPTIME_ZSTOP_INDEX (ZSTOP=?) (~2 rows)
 
 Note that it is important how we order the predicate. We want to put the longitude and latitude stuff first, since it's cheap, and the subquery last, since it's expensive.
-注意，我们如何安排谓词的顺序非常重要。我们因为经纬度廉价所以想要将其 排列在首位，而因子查询昂贵将其排列在最后。
+请注意，我们如何队谓词排序非常重要。我们希望把经纬度排列在首位，因为代价低，而子查询由于代价高将其排列在最后。
 
 ### Text Search
 ### 文本搜索
 
 
 A common scenario is searching for text. In our case, let's look at searching for *Stop* entities by their name.
-搜索文本是一个非常常见的情景。我们来看看使用名称来搜索“停止”实体。
+搜索文本是一种常见的情况。在我们的例子中，来看看使用名称来搜索 *车站* 实体。
 
 Berlin has a stop called "U Görlitzer Bahnhof (Berlin)". A naïve way to search for that would be:
-柏林有个被称为"U Görlitzer Bahnhof (Berlin)"的停止。有一种幼稚的搜索方法如下：
+柏林有个被称为 "U Görlitzer Bahnhof (Berlin)" 的车站。一种天真的搜索该站的方法如下：
 
     NSString *searchString = @"U Görli";
     predicate = [NSPredicate predicateWithFormat:@"name BEGINSWITH %@", searchString];
 
 Things get even worse if you want to be able to do:
-如果你想按照如下所示做的话，事情会更糟：
+如果你想按照如下所示做的话，事情会变得更糟：
 
     name BEGINSWITH[cd] 'u gorli'
-
+ 
 i.e. do a case and / or diacritic insensitive lookup.
-比如进行一项忽略大小写和（或）音调的查询。
+例如：进行一项大小写和（或）音调不敏感的查询。
 
 Things are not that simple, though. Unicode is very complicated and there are quite a few gotchas. First and foremost ís that many characters can be represented in multiple ways. Both [U+00F6](http://unicode.org/charts/PDF/U0080.pdf) and [U+006F](http://www.unicode.org/charts/PDF/U0000.pdf) [U+0308](http://unicode.org/charts/PDF/U0300.pdf) represent "ö." And concepts such as uppercase / lowercase are very complicated once you're outside the ASCII code points.
+
 尽管如此，事情并不是那么简单。解码非常复杂，而且有很多陷阱。首要的是很多字符可以使用多种方式来表示。
 [U+00F6](http://unicode.org/charts/PDF/U0080.pdf) and [U+006F](http://www.unicode.org/charts/PDF/U0000.pdf) [U+0308](http://unicode.org/charts/PDF/U0300.pdf)都可以表示"ö."。如果你不使用ASCII编码，像大小写这样的概念就会非常复杂。
 
