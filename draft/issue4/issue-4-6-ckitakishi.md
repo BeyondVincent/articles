@@ -383,3 +383,5 @@ When we run `-[NSManagedObjectContext executeFetchRequest:error:]` with a batch 
 On iOS, when you use an `NSFetchedResultsController` and you have a lot of objects, make sure that the `fetchBatchSize` is set on your fetch request. You'll have to experiment with what size works well for you. Twice the amount of objects that you'll be displaying at any given point in time is a good starting point.
 
 在 iOS 中，如果你使用 `NSFetchedResultsController` 且有很多对象，请确保你的 fetch 请求中设置了 `fetchBatchSize`。你不得不测试多少处理量更适合你。在一开始最好让对象数目翻倍，这样你就可以在任何指定的时间点及时显示对象。
+
+译文 [Fetch 请求](https://github.com/answer-huang/objcio_cn/blob/master/%E7%BF%BB%E8%AF%91%E5%AE%8C%E6%88%90/Fetch%20Request)
