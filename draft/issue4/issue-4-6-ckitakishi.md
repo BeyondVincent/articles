@@ -31,7 +31,7 @@ We won't cover the basics here, since the Xcode Documentation on Core Data calle
 
 In our [sample with transportation data](https://github.com/objcio/issue-4-importing-and-fetching), we have 12,800 stops and almost 3,000,000 stop times that are interrelated. If we want to find stop times with a departure time between 8:00 and 8:30 for stops close to 52° 29' 57.30" North, +13° 25' 5.40" East, we don't want to load all 12,800 *stop* objects and all three million *stop time* objects into the context and then loop through them. If we did, we'd have to spend a huge amount of time to simply load all objects into memory and then a fairly large amount of memory to hold all of these in memory. Instead what we want to do is have SQLite narrow down the set of objects that we're pulling into memory.
 
-在我们的 [sample with transportation data](https://github.com/objcio/issue-4-importing-and-fetching) 中，我们有 12,800 个车站，其中几乎 3,000,000 个停止时间相互关联。对接近北纬 52° 29' 57.30"，东经 +13° 25' 5.40" 的车站，如果我们想要通过开始时间介于 8：00 和 8：30 之间的对象来查找停止时间，我们不会想要在这个 context 中加载所有的 12,800 个 `车站` 对象和 3,000,000 个 `停止时间` 对象，然后再对它们进行循环访问。如果我们这样做，将不得不花费大量时间以及相当大的存储空间以将所有的对象加载到存储器中。取而代之，我们想要的是使用 SQLite 来缩减进入储存器的对象的集合。
+在我们的 [sample with transportation data](https://github.com/objcio/issue-4-importing-and-fetching) 中，我们有 12,800 个车站，其中几乎 3,000,000 个停止时间相互关联。对接近北纬 52° 29' 57.30"，东经 +13° 25' 5.40" 的车站，如果我们想要通过开始时间介于 8：00 和 8：30 之间的对象来查找时间，我们不会想要在这个 context 中加载所有的 12,800 个 `车站` 对象和 3,000,000 个 `停留时间` 对象，然后再对它们进行循环访问。如果我们这样做，将不得不花费大量时间以及相当大的存储空间以将所有的对象加载到存储器中。取而代之，我们想要的是使用 SQLite 来缩减进入储存器的对象的集合。
 
 
 ### Geo-Location Predicate
@@ -88,12 +88,12 @@ We want to search within ±263 feet (80 meters):
                       @(minLongitude), @(maxLongitude), @(minLatitude), @(maxLatitude)];
 
 There's no point in specifying a sort descriptor. Since we're going to be doing a second in-memory pass over all objects, we will, however, ask Core Data to fill in all values for all returned objects:
-指定一种排序描述符毫无意义。因为我们会用另一个内存来传递所有对象，不过我们将用 Core Data 填入所有返回对象的所有的值。
+指定一种排序描述符毫无意义。因为我们会在内存中做第二次遍历，不过我们将用 Core Data 填入所有返回对象的所有的值。
 
     request.returnsObjectsAsFaults = NO;
 
 Without this, Core Data will fetch all values into the persistent store coordinator's row cache, but it will not populate the actual objects. Often that makes sense, but since we'll immediately be accessing all of the objects, we don't want that behavior.
-否则，core data将进入持久化存储协调器的row cache读取所有的值，不过它不会填充实际对象。这往往是可行的，不过由于我们将立刻访问所有对象，我们并不希望出现这种行为。
+否则，Core Data将进入持久化存储协调器的row cache读取所有的值，不过它不会填充实际对象。这往往是可行的，不过由于我们将立刻访问所有对象，我们并不希望出现这种行为。
 
 As a safe-guard, it's good to add:
 为安全防范考虑，最好加上：
@@ -111,7 +111,7 @@ The only (likely) reasons the fetch would fail is if the store went corrupt (fil
 读取失败唯一（可能）的原因是储存器损坏（文件被删除等等），或者 fetch 请求中出现语法错误。所以在这里使用 `NSAssert()` 是安全的。
 
 We'll now do the second pass over the in-memory data using Core Locations advance distance math:
-我们现在使用 Core Locations 推进距离数学，为内存中的数据做第二个通行证。
+我们现在使用 Core Locations ，对内存中的数据做第二次遍历。
 
     NSPredicate *exactPredicate = [self exactLatitudeAndLongitudePredicateForCoordinate:self.location.coordinate];
     stops = [stops filteredArrayUsingPredicate:exactPredicate];
@@ -145,7 +145,7 @@ If we add `-com.apple.CoreData.SQLDebug 1` as launch arguments to the app, we ge
     annotation: total fetch execution time: 0.0013s for 15 rows.
 
 In addition to some statistics (for the store itself), this shows us the generated SQL for these fetches:
-除了一些统计信息（对于存储本身），还向我们展示了读取到的数据生成的SQL：
+除了一些统计信息（对于存储本身），以下展示了为读取数据而生成的 SQL：
 
     SELECT 0, t0.Z_PK, t0.Z_OPT, t0.ZIDENTIFIER, t0.ZLATITUDE, t0.ZLONGITUDE, t0.ZNAME FROM ZSTOP t0
 	WHERE (? <=  t0.ZLONGITUDE AND  t0.ZLONGITUDE <= ? AND ? <=  t0.ZLATITUDE AND  t0.ZLATITUDE <= ?)
@@ -184,7 +184,7 @@ As explained in the [SQLite Documentation](https://www.sqlite.org/eqp.html), the
 
 
 Let's say we only want those stops near us that are serviced within the next twenty minutes.
-假设我们只想要那些接近我们的且在接下来20分钟之内提供服务的停止对象。
+假设我们只想要那些接近我们的且在接下来20分钟之内提供服务的车站。
 
 We can create a predicate for the *StopTimes* entity like this:
 我们可以像这样为 *停止时间* 实体创建一个谓词：
@@ -193,7 +193,7 @@ We can create a predicate for the *StopTimes* entity like this:
                                   startDate, endDate];
 
 But what if what we want is a predicate that we can use to filter *Stop* objects based on the relationship to *StopTime* objects, not *StopTime* objects themselves? We can do that with a `SUBQUERY` like this:
-但是如果我们想要的谓词是可以用来过滤哪些是基于与 *停止时间* 对象的关系之上的 *停止* 对象，而不是 *停止时间* 对象本身，我们可以使用一个这样的 `子查询` ：
+但是如果我们想要的谓词是可以用来过滤哪些是基于与 *停止时间* 对象的关系之上的 *车站* 对象，而不是 *停止时间* 对象本身，我们可以使用一个这样的 `子查询` ：
 
     NSPredicate *predicate = [NSPredicate predicateWithFormat:
                               @"(SUBQUERY(stopTimes, $x, (%@ <= $x.departureTime) && ($x.departureTime <= %@)).@count != 0)",
@@ -244,6 +244,7 @@ This fetch request now takes around 12.3 ms to run on a recent MacBook Pro. On a
 
 The query plan explanation looks like this:
 这个查询计划的解释如下：
+
     sqlite> EXPLAIN QUERY PLAN SELECT 0, t0.Z_PK, t0.Z_OPT, t0.ZIDENTIFIER, t0.ZLATITUDE, t0.ZLONGITUDE, t0.ZNAME FROM ZSTOP t0
        ...> WHERE ((13.37190946378911 <=  t0.ZLONGITUDE AND  t0.ZLONGITUDE <= 13.3978625285315 AND 52.41186440524024 <=  t0.ZLATITUDE AND  t0.ZLATITUDE <= 52.42769244314491) AND
        ...> (SELECT COUNT(t1.Z_PK) FROM ZSTOPTIME t1 WHERE (t0.Z_PK = t1.ZSTOP AND ((-978291733.000000 <=  t1.ZDEPARTURETIME AND  t1.ZDEPARTURETIME <= -978290533.000000))) ) <> ?)
@@ -253,7 +254,7 @@ The query plan explanation looks like this:
     1|0|0|SEARCH TABLE ZSTOPTIME AS t1 USING INDEX ZSTOPTIME_ZSTOP_INDEX (ZSTOP=?) (~2 rows)
 
 Note that it is important how we order the predicate. We want to put the longitude and latitude stuff first, since it's cheap, and the subquery last, since it's expensive.
-请注意，我们如何队谓词排序非常重要。我们希望把经纬度排列在首位，因为代价低，而子查询由于代价高将其排列在最后。
+请注意，我们如何对谓词排序非常重要。我们希望把经纬度放在前面，因为代价低，而子查询由于代价高则放在语句最后。
 
 ### Text Search
 ### 文本搜索
