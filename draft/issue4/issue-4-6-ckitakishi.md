@@ -11,7 +11,7 @@ tags: article
 
 A way to get objects out of the store is to use an `NSFetchRequest`. Note, though, that one of the most common mistakes is to fetch data when you don't need to. Make sure you read and understand [Getting to Objects][320]. Most of the time, traversing relationships is more efficient, and using an `NSFetchRequest` is often expensive.
 
-调用对象的方法之一是使用 `NSFetchRequest`。但是请注意，尽管如此，有一个最常见的错误是在你不需要的时候读取数据。你要确保你已经阅读并理解 [Getting to Objects][320]。大多数时候，遍历关系更加有效，而使用 `NSFetchRequest` 成本更高。
+调用对象的方法之一是使用 `NSFetchRequest`。但是请注意，尽管如此，有一个最常见的错误是在你不需要的时候读取数据。你要确保你已经阅读并理解了 [Getting to Objects][320]。大多数时候，遍历关系更加有效，而使用 `NSFetchRequest` 往往成本很高。
 
 There are usually two reasons to perform a fetch with an `NSFetchRequest`: (1) You need to search your entire object graph for objects that match specific predicates. Or (2), you want to display all your objects, e.g. in a table view. There's a third, less-common scenario, where you're traversing relationships but want to pre-fetch more efficiently. We'll briefly dive into that, too. But let us first look at the main two reasons, which are more common and each have their own set of complexities.
 
@@ -31,7 +31,7 @@ We won't cover the basics here, since the Xcode Documentation on Core Data calle
 
 In our [sample with transportation data](https://github.com/objcio/issue-4-importing-and-fetching), we have 12,800 stops and almost 3,000,000 stop times that are interrelated. If we want to find stop times with a departure time between 8:00 and 8:30 for stops close to 52° 29' 57.30" North, +13° 25' 5.40" East, we don't want to load all 12,800 *stop* objects and all three million *stop time* objects into the context and then loop through them. If we did, we'd have to spend a huge amount of time to simply load all objects into memory and then a fairly large amount of memory to hold all of these in memory. Instead what we want to do is have SQLite narrow down the set of objects that we're pulling into memory.
 
-在我们的 [sample with transportation data](https://github.com/objcio/issue-4-importing-and-fetching) 中，我们有 12,800 个车站，其中几乎 3,000,000 个停止时间相互关联。对接近北纬 52° 29' 57.30"，东经 +13° 25' 5.40" 的车站，如果我们想要通过开始时间介于 8：00 和 8：30 之间的对象来查找时间，我们不会想要在这个 context 中加载所有的 12,800 个 `车站` 对象和 3,000,000 个 `停留时间` 对象，然后再对它们进行循环访问。如果我们这样做，将不得不花费大量时间以及相当大的存储空间以将所有的对象加载到存储器中。取而代之，我们想要的是使用 SQLite 来缩减进入储存器的对象的集合。
+在我们的 [sample with transportation data](https://github.com/objcio/issue-4-importing-and-fetching) 中，我们有 12,800 个车站，其中几乎 3,000,000 个停留时间相互关联。对接近北纬 52° 29' 57.30"，东经 +13° 25' 5.40" 的车站，如果我们想要通过开始时间介于 8：00 和 8：30 之间的对象来查找时间，我们不会想要在这个 context 中加载所有的 12,800 个 `车站` 对象和 3,000,000 个 `停留时间` 对象，然后再对它们进行循环访问。如果我们这样做，将不得不花费大量时间以及相当大的存储空间以将所有的对象加载到存储器中。取而代之，我们想要的是使用 SQLite 来缩减进入储存器的对象的集合。
 
 
 ### Geo-Location Predicate
@@ -45,10 +45,10 @@ Let's start out small and create a fetch request for stops close to 52° 29' 57.
     NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:[Stop entityName]]
 
 We're using the `+entityName` method that we mention in [Florian's data model article][250]. Next, we need to limit the results to just those close to our point.
-我们使用[Florian's data model article][250]中提到的 `+entityName` 方法。然后，我们需要将结果限定为那些接近我们关注点的。
+我们使用 [Florian's data model article][250] 中提到的 `+entityName` 方法。然后，我们需要将结果限定为那些接近我们的点的结果。
 
 We'll simply use a (not quite) square region around our point of interest. The actual math is [a bit complex](https://en.wikipedia.org/wiki/Geographical_distance), because the Earth happens to be somewhat similar to an ellipsoid. If we cheat a bit and assume the earth is spherical, we get away with this formula:
-我们可以简单的用一个（不完全）正方形区域围绕我们的兴趣点。实际在数学上这[有些复杂] (https://en.wikipedia.org/wiki/Geographical_distance)，因为地球恰好有点类似于一个椭球。如果我们假设地球是球体，则可以得到这个公式：
+我们可以简单的用一个（不完全）正方形区域围绕我们的兴趣点。实际在数学上这 [有些复杂] (https://en.wikipedia.org/wiki/Geographical_distance)，因为地球恰好有点类似于一个椭球。如果我们假设地球是球体，则可以得到这个公式：
 
     D = R * sqrt( (deltaLatitude * deltaLatitude) +
 	              (cos(meanLatitidue) * deltaLongitude) * (cos(meanLatitidue) * deltaLongitude))
@@ -61,16 +61,16 @@ We end up with something like this (all approximate):
     double deltaLongitude = D / (R * cos(meanLatitidue)) * 180 / M_PI;
 
 Our point of interest is:
-我们的兴趣点是：
+我们的感兴趣的点是：
 
 	CLLocation *pointOfInterest = [[CLLocation alloc] initWithLatitude:52.4992490 
                                                              longitude:13.4181670];
 
 We want to search within ±263 feet (80 meters):
-我们想在±263英尺（80米）内进行搜索：
+我们想在 ± 263英尺（80 米）内进行搜索：
 	
 	static double const D = 80. * 1.1;
-    double const R = 6371009.; // Earth readius in meters
+        double const R = 6371009.; // Earth readius in meters
 	double meanLatitidue = pointOfInterest.latitude * M_PI / 180.;
 	double deltaLatitude = D / R * 180. / M_PI;
 	double deltaLongitude = D / (R * cos(meanLatitidue)) * 180. / M_PI;
@@ -80,7 +80,7 @@ We want to search within ±263 feet (80 meters):
 	double maxLongitude = pointOfInterest.longitude + deltaLongitude;
 
 (This math is broken when we're close to the 180° meridian. We'll ignore that since our traffic data is for Berlin which is far, far away.)
-（当我们接近 180° 经线的时候，这个公式不成立。由于我们的交通数据源于离 180° 经线很远很远的柏林，所以我们忽略这个问题。）
+（当我们接近 180° 经线的时候，这个运算不成立。由于我们的交通数据源于离 180° 经线很远很远的柏林，所以我们忽略这个问题。）
 
     request.result = [NSPredicate predicateWithFormat:
                       @"(%@ <= longitude) AND (longitude <= %@)"
@@ -93,7 +93,7 @@ There's no point in specifying a sort descriptor. Since we're going to be doing 
     request.returnsObjectsAsFaults = NO;
 
 Without this, Core Data will fetch all values into the persistent store coordinator's row cache, but it will not populate the actual objects. Often that makes sense, but since we'll immediately be accessing all of the objects, we don't want that behavior.
-否则，Core Data将进入持久化存储协调器的row cache读取所有的值，不过它不会填充实际对象。这往往是可行的，不过由于我们将立刻访问所有对象，我们并不希望出现这种行为。
+否则，Core Data 将进入持久化存储协调器的行缓存读取所有的值，不过它不会填充实际对象。这往往是可行的，不过由于我们将立刻访问所有对象，我们并不希望出现这种行为。
 
 As a safe-guard, it's good to add:
 为安全防范考虑，最好加上：
@@ -116,7 +116,7 @@ We'll now do the second pass over the in-memory data using Core Locations advanc
     NSPredicate *exactPredicate = [self exactLatitudeAndLongitudePredicateForCoordinate:self.location.coordinate];
     stops = [stops filteredArrayUsingPredicate:exactPredicate];
 
-and:
+和：
 
     - (NSPredicate *)exactLatitudeAndLongitudePredicateForCoordinate:(CLLocationCoordinate2D)pointOfInterest;
     {
@@ -165,7 +165,7 @@ which is what we'd expect. If we'd want to investigate the performance, we can u
 	0|0|0|SEARCH TABLE ZSTOP AS t0 USING INDEX ZSTOP_ZLONGITUDE_INDEX (ZLONGITUDE>? AND ZLONGITUDE<?) (~6944 rows)
 
 This tell us that SQLite was using the `ZSTOP_ZLONGITUDE_INDEX` for the `(ZLONGITUDE>? AND ZLONGITUDE<?)` condition. We could do better by using a *compound index* as described in the [model article][260]. Since we'd always search for a combination of longitude and latitude that is more efficient, and we can remove the individual indexes on longitude and latitude.
-这告诉我们 SQLite 为 `(ZLONGITUDE>? AND ZLONGITUDE<?)` 条件使用了 `ZSTOP_ZLONGITUDE_INDEX`。我们像 [model article][260] 中描述的那样使用 *compound index* 则会做的更好。由于我们总是为了效率而同时搜索经纬度，而且我们可以去除经度和纬度各自的指数。
+这告诉我们 SQLite 为 `(ZLONGITUDE>? AND ZLONGITUDE<?)` 条件使用了 `ZSTOP_ZLONGITUDE_INDEX`。我们像 [model article][260] 中描述的那样使用 *compound index* 则会做的更好。由于我们总是同时搜索经度和纬度的组合，这很有效，而且我们可以去除经度和纬度各自的指数。
 
 This would make the output look like this:
 这将使输出像下面这样：
@@ -177,7 +177,7 @@ In our simple case, adding a compound index hardly affects performance.
 
 As explained in the [SQLite Documentation](https://www.sqlite.org/eqp.html), the warning sign is a `SCAN TABLE` in the output. That basically means that SQLite needs to go through *all* entries to see which ones are matching. Unless you store just a few objects, you'd probably want an index.
 
-就像在 [SQLite 文档](https://www.sqlite.org/eqp.html) 中的说明一样，警报信号在输出中是一个 `SCAN TABLE`。这基本上意味着 SQLite 需要遍历 *所有的* 记录来看看那些是相匹配的。
+就像在 [SQLite 文档](https://www.sqlite.org/eqp.html) 中的说明一样，警告信号在输出中是一个 `SCAN TABLE`。这基本上意味着 SQLite 需要遍历 *所有的* 记录来看看那些是相匹配的。
 
 ### Subqueries
 ### 子查询
@@ -187,24 +187,24 @@ Let's say we only want those stops near us that are serviced within the next twe
 假设我们只想要那些接近我们的且在接下来20分钟之内提供服务的车站。
 
 We can create a predicate for the *StopTimes* entity like this:
-我们可以像这样为 *停止时间* 实体创建一个谓词：
+我们可以像这样为 *停留时间* 实体创建一个谓词：
 
     NSPredicate *timePredicate = [NSPredicate predicateWithFormat:@"(%@ <= departureTime) && (departureTime <= %@)",
                                   startDate, endDate];
 
 But what if what we want is a predicate that we can use to filter *Stop* objects based on the relationship to *StopTime* objects, not *StopTime* objects themselves? We can do that with a `SUBQUERY` like this:
-但是如果我们想要的谓词是可以用来过滤哪些是基于与 *停止时间* 对象的关系之上的 *车站* 对象，而不是 *停止时间* 对象本身，我们可以使用一个这样的 `子查询` ：
+但是如果我们想要的谓词是可以用来过滤哪些是基于与 *停留时间* 对象的关系之上的 *车站* 对象，而不是 *停留时间* 对象本身，我们可以使用一个这样的 `子查询` ：
 
     NSPredicate *predicate = [NSPredicate predicateWithFormat:
                               @"(SUBQUERY(stopTimes, $x, (%@ <= $x.departureTime) && ($x.departureTime <= %@)).@count != 0)",
                               startDate, endDate];
 
 Note that this logic is slightly flawed if we're close to midnight, since we ought to wrap by splitting the predicate up into two. But it'll work for this example.
-请注意，如果接近午夜，这个逻辑是稍有瑕疵的，因为我们应当将谓词一分为二。不过这个逻辑在这个例子中是可行的。
+请注意，如果接近午夜，这个逻辑是稍有瑕疵的，因为我们应当将谓词一分为二。不过该逻辑在这个例子中是可行的。
 
 Subqueries are very powerful for limiting data across relationship. The Xcode documentation for [`-[NSExpression expressionForSubquery:usingIteratorVariable:predicate:]`](https://developer.apple.com/library/ios/documentation/cocoa/reference/foundation/Classes/NSExpression_Class/Reference/NSExpression.html#//apple_ref/occ/clm/NSExpression/expressionForSubquery:usingIteratorVariable:predicate:) has more info. 
 
-对于限制数据在关系之上的，子查询非常有用。在 Xcode 文档[`-[NSExpression expressionForSubquery:usingIteratorVariable:predicate:]`](https://developer.apple.com/library/ios/documentation/cocoa/reference/foundation/Classes/NSExpression_Class/Reference/NSExpression.html#//apple_ref/occ/clm/NSExpression/expressionForSubquery:usingIteratorVariable:predicate:) 中有更多信息。
+对于限制数据在关系之上的，子查询非常有用。在 Xcode 文档 [`-[NSExpression expressionForSubquery:usingIteratorVariable:predicate:]`](https://developer.apple.com/library/ios/documentation/cocoa/reference/foundation/Classes/NSExpression_Class/Reference/NSExpression.html#//apple_ref/occ/clm/NSExpression/expressionForSubquery:usingIteratorVariable:predicate:) 中有更多信息。
 
 We can combine two predicates simply using `AND` or `&&`, i.e.
 我们可以简单的使用 `and` 或者 `&&` 来组合两个谓词，例如：
@@ -240,7 +240,7 @@ If we look at the generated SQL it looks like this:
 		 LIMIT 200
 
 This fetch request now takes around 12.3 ms to run on a recent MacBook Pro. On an iPhone 5, it'll take about 110 ms. Note that we have three million stop times and almost 13,000 stops.
-这个 fetch 请求在新一代 MacBook Pro 上运行大约需要 12.3 ms。在 iPhone 5 上，大约需要 110 ms。请注意，我们有 3,000,000 个停止时间 和将近 13,000 个车站。
+这个 fetch 请求在新一代 MacBook Pro 上运行大约需要 12.3 ms。在 iPhone 5 上，大约需要 110 ms。请注意，我们有 300 万 个停留时间 和将近 13,000 个车站。
 
 The query plan explanation looks like this:
 这个查询计划的解释如下：
@@ -275,7 +275,7 @@ Things get even worse if you want to be able to do:
     name BEGINSWITH[cd] 'u gorli'
  
 i.e. do a case and / or diacritic insensitive lookup.
-例如：进行一项大小写和 / 或音调不敏感的查询。
+例如：进行一项大小写和（或）音调不敏感的查询。
 
 Things are not that simple, though. Unicode is very complicated and there are quite a few gotchas. First and foremost ís that many characters can be represented in multiple ways. Both [U+00F6](http://unicode.org/charts/PDF/U0080.pdf) and [U+006F](http://www.unicode.org/charts/PDF/U0000.pdf) [U+0308](http://unicode.org/charts/PDF/U0300.pdf) represent "ö." And concepts such as uppercase / lowercase are very complicated once you're outside the ASCII code points.
 
@@ -288,10 +288,10 @@ SQLite 会为你减轻负担，但它是要付出代价的。虽然它看起来�
 
 Searching with `BEGINSWITH[cd]` takes around 7.6 ms on a recent MacBook Pro with the sample strings in our sample code (130 searches / second). On an iPhone 5 those numbers are 47 ms per search and 21 searches per second.
 
-在最新一代 MacBook Pro 上，使用示例代码中的示例字符串（130次搜索 / 秒）搜索 `BEGINSWITH[cd]` 需要 7.6ms，在 iPhone 5 上这个数字是每次搜索 47ms，每秒进行 21 次搜索。
+在新一代 MacBook Pro 上，使用示例代码中的示例字符串（130 次搜索 / 秒）搜索 `BEGINSWITH[cd]` 需要 7.6ms，在 iPhone 5 上这个数字是每次搜索 47ms，每秒进行 21 次搜索。
 
 To make a string lowercase and remove diacritics, we can use `CFStringTransform()`:
-为了将字符串转换为小写和移除其音调，我们可以使用 `CFStringTransform()`：
+为了将字符串转换为小写并移除其音调，我们可以使用 `CFStringTransform()`：
 
     @implementation NSString (SearchNormalization)
     
@@ -342,8 +342,8 @@ With this, we can search with `BEGINSWITH` instead of `BEGINSWITH[cd]`:
 
 Searching with `BEGINSWITH` takes around 6.2 ms on a recent MacBook Pro with the sample strings in our sample code (160 searches / second). On an iPhone 5 it takes 40ms corresponding to 25 searches / second.
 
-在最新一代 MacBook Pro 上，使用示例代码中的示例字符串（160 次搜索 / 秒）搜索 `BEGINSWITH`
-需要6.2ms，在 iPhone 5 大约上需要 40ms，25 次搜索 / 秒。
+在新一代 MacBook Pro 上，使用示例代码中的示例字符串（160 次搜索 / 秒）搜索 `BEGINSWITH`
+需要 6.2ms，在 iPhone 5 大约上需要 40ms，25 次搜索 / 秒。
 
 #### Free Text Search
 #### 自由文本搜索
@@ -370,7 +370,7 @@ This can also be done in a subquery directly on the `Stop` objects.
 
 If we don't set a predicate on our fetch request, we'll retrieve all objects for the given *Entity*. If we did that for the `StopTimes` entity, we'll be pulling in three million objects. That would be slow, and use up a lot of memory. Sometimes, however, we need to get all objects. The common example is that we want to show all objects inside a table view.
 
-如果我们的 fetch 请求中没有设置谓词，我们将为给定 *实体* 检索所有对象。如果我们对 `停止时间` 实体这样做的话，我们将会牵涉 300 万个对象。这将会变得缓慢，以及占用大量内存。然而有时候，我们需要获取所有对象。常见的例子是我们想要在一个 table view 中显示所有对象。
+如果我们的 fetch 请求中没有设置谓词，我们将为给定 *实体* 检索所有对象。如果我们对 `停时间` 实体这样做的话，我们将会牵涉 300 万个对象。这将会变得缓慢，以及占用大量内存。然而有时候，我们需要获取所有对象。常见的例子是我们想要在一个 table view 中显示所有对象。
 
 What we would do in this case, is to set a batch size:
 在这种情况中，我们要做的是设置批处理量：
@@ -379,10 +379,10 @@ What we would do in this case, is to set a batch size:
 
 When we run `-[NSManagedObjectContext executeFetchRequest:error:]` with a batch size set, we still get an array back. We can ask it for its count (which will be close to three million for the `StopTime` entity), but Core Data will only populate it with objects as we iterate through the array. And Core Data will get rid of objects again, as they're no longer accessed. Simply put, the array has batches of size 50 (in this case). Core Data will pull in 50 objects at a time. Once more than a certain number of these batches are around, Core Data will release the oldest batch. That way you can loop through all objects in such an array, without having to have all three million objects in memory at the same time.
 
-当我们设置了批处理量运行 `-[NSManagedObjectContext executeFetchRequest:error:]` 的时候，我们仍然会得到一个返回的数组。我们可以查询它的大小（对于 `停止时间` 实体而言，这将接近 300 万），不过 Core Data 将只会随着我们对数组的循环访问将对象填充进去。如果这些对象不再被访问，Core Data 则会再次清理对象。简单来说，数组的批处理量为 50（在这个例子中）。Core Data 将一次获取50个对象。一旦有超过一定数量的批量对象，Core Data 将释放最旧一批对象。于是，你就可以在这样的数组中循环访问所有对象，而无需在存储器中同时存所有 300 万个对象。
+当我们设置了批处理量运行 `-[NSManagedObjectContext executeFetchRequest:error:]` 的时候，我们仍然会得到一个返回的数组。我们可以查询它的大小（对于 `停留时间` 实体而言，这将接近 300 万），不过 Core Data 将只会随着我们对数组的循环访问将对象填充进去。如果这些对象不再被访问，Core Data 则会再次清理对象。简单来说，数组的批处理量为 50（在这个例子中）。Core Data 将一次获取50个对象。一旦有超过一定数量的批量对象，Core Data 将释放最旧一批对象。于是，你就可以在这样的数组中循环访问所有对象，而无需在存储器中同时存所有 300 万个对象。
 
 On iOS, when you use an `NSFetchedResultsController` and you have a lot of objects, make sure that the `fetchBatchSize` is set on your fetch request. You'll have to experiment with what size works well for you. Twice the amount of objects that you'll be displaying at any given point in time is a good starting point.
 
-在 iOS 中，如果你使用 `NSFetchedResultsController` 且有很多对象，请确保你的 fetch 请求中设置了 `fetchBatchSize`。你不得不测试多少处理量更适合你。在一开始最好让对象数目翻倍，这样你就可以在任何指定的时间点及时显示对象。
+在 iOS 中，如果你使用 `NSFetchedResultsController` 且有很多对象，请确保你的 fetch 请求中设置了 `fetchBatchSize`。你不得不测试多少处理量更适合你。在一开始最好让对象数目翻倍，这样你就可以在任何指定的点及时显示对象。
 
 译文 [Fetch 请求](https://github.com/answer-huang/objcio_cn/blob/master/%E7%BF%BB%E8%AF%91%E5%AE%8C%E6%88%90/Fetch%20Request)
